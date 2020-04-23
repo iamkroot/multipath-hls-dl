@@ -4,14 +4,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 )
 
-func Get(url string) (io.ReadCloser, error) {
-	c := http.Client{
-		Timeout: time.Duration(60) * time.Second,
-	}
-	resp, err := c.Get(url)
+func Get(url string, hClient http.Client) (io.ReadCloser, error) {
+	resp, err := hClient.Get(url)
 	if err != nil {
 		return nil, err
 	}

@@ -4,14 +4,15 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
 	"sync/atomic"
 
-	"github.com/oopsguy/m3u8/parse"
-	"github.com/oopsguy/m3u8/tool"
+	"../parse"
+	"../tool"
 )
 
 const (
@@ -29,13 +30,14 @@ type Downloader struct {
 	tsFolder string
 	finish   int32
 	segLen   int
+	hClient  http.Client
 
 	result *parse.Result
 }
 
 // NewTask returns a Task instance
-func NewTask(output string, url string) (*Downloader, error) {
-	result, err := parse.FromURL(url)
+func NewTask(output string, url string, hClient http.Client) (*Downloader, error) {
+	result, err := parse.FromURL(url, hClient)
 	if err != nil {
 		return nil, err
 	}
@@ -61,6 +63,7 @@ func NewTask(output string, url string) (*Downloader, error) {
 		folder:   folder,
 		tsFolder: tsFolder,
 		result:   result,
+		hClient:  hClient,
 	}
 	d.segLen = len(result.M3u8.Segments)
 	d.queue = genSlice(d.segLen)
@@ -104,7 +107,7 @@ func (d *Downloader) Start(concurrency int) error {
 func (d *Downloader) download(segIndex int) error {
 	tsFilename := tsFilename(segIndex)
 	tsUrl := d.tsURL(segIndex)
-	b, e := tool.Get(tsUrl)
+	b, e := tool.Get(tsUrl, d.hClient)
 	if e != nil {
 		return fmt.Errorf("request %s, %s", tsUrl, e.Error())
 	}
