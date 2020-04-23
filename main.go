@@ -14,17 +14,20 @@ import (
 )
 
 var (
-	url      string
-	output   string
-	chanSize int
-	protocol string
+	url       string
+	output    string
+	chanSize  int
+	protocol  string
+	multipath bool
 )
 
 func init() {
 	flag.StringVar(&url, "u", "", "M3U8 URL, required")
 	flag.IntVar(&chanSize, "c", 25, "Maximum number of occurrences")
 	flag.StringVar(&output, "o", "", "Output folder, required")
-	flag.StringVar(&protocol, "p", "quic", "")
+	flag.StringVar(&protocol, "p", "quic", "The protocol to be used")
+	flag.BoolVar(&multipath, "m", false, "Enable multipath use for QUIC")
+
 }
 
 func main() {
@@ -44,21 +47,14 @@ func main() {
 	if chanSize <= 0 {
 		panic("parameter 'c' must be greater than 0")
 	}
-	var c http.Client
+	c := http.Client{
+		Timeout: time.Duration(60) * time.Second,
+	}
 	if protocol == "quic" {
 		fmt.Println("Using QUIC")
-		quicConfig := &quic.Config{
-			CreatePaths: true,
-		}
+		quicConfig := &quic.Config{CreatePaths: multipath}
 		tlsConfig := &tls.Config{InsecureSkipVerify: true}
-		c = http.Client{
-			Transport: &h2quic.RoundTripper{QuicConfig: quicConfig, TLSClientConfig: tlsConfig},
-			Timeout:   time.Duration(60) * time.Second,
-		}
-	} else {
-		c = http.Client{
-			Timeout: time.Duration(60) * time.Second,
-		}
+		c.Transport = &h2quic.RoundTripper{QuicConfig: quicConfig, TLSClientConfig: tlsConfig}
 	}
 
 	downloader, err := dl.NewTask(output, url, c)
